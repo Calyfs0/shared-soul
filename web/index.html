@@ -38,16 +38,22 @@
       margin: 0;
       height: 100%;
       background: #17263B;
+      color: #F5F0E8;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.28em;
+      font-size: 13px;
+      text-transform: uppercase;
+      opacity: 0.75;
     }
   </style>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <div id="loading">Shared Soul</div>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
