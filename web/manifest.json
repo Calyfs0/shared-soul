@@ -1,11 +1,11 @@
 {
-    "name": "ghost_companion",
-    "short_name": "ghost_companion",
+    "name": "Shared Soul",
+    "short_name": "Shared Soul",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#17263B",
+    "theme_color": "#17263B",
+    "description": "Shared Soul — a celestial companion for two.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
