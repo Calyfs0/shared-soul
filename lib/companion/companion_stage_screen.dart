@@ -137,18 +137,21 @@ class _CompanionStageScreenState extends State<CompanionStageScreen>
                   final memoryLine =
                       memories.isEmpty ? null : memories.last.title;
 
+                  final awaitingNext = controller.awaitingNextConnection;
+
                   return LayoutBuilder(
                     builder: (context, constraints) {
                       final w = constraints.maxWidth;
                       final h = constraints.maxHeight;
+                      // Keep hero compact when cooldown + chores share the screen.
                       final bottomReserve = cooling
-                          ? (goalsUnlocked ? 320.0 : 200.0)
-                          : (goalsUnlocked ? 260.0 : 168.0);
+                          ? (goalsUnlocked ? 300.0 : 180.0)
+                          : (awaitingNext ? 120.0 : 140.0);
                       final heroBudget =
-                          (h - bottomReserve).clamp(160.0, h * 0.5);
+                          (h - bottomReserve).clamp(120.0, h * 0.42);
                       final heroSide = math
-                          .min(w * 0.72, heroBudget * 0.85)
-                          .clamp(150.0, 260.0)
+                          .min(w * 0.62, heroBudget * 0.78)
+                          .clamp(110.0, 200.0)
                           .toDouble();
 
                       return Column(
@@ -183,20 +186,37 @@ class _CompanionStageScreenState extends State<CompanionStageScreen>
                               ),
                             ),
                           ),
-                          if (cooling)
-                            _CooldownBanner(
-                              remaining: controller.cooldownRemaining,
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: SingleChildScrollView(
+                              physics: const ClampingScrollPhysics(),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (cooling)
+                                    _CooldownBanner(
+                                      remaining: controller.cooldownRemaining,
+                                    ),
+                                  if (goalsUnlocked)
+                                    LoveGoalsPanel(controller: controller)
+                                  else if (awaitingNext)
+                                    _CtaBar(
+                                      label: 'Opening next check-in…',
+                                      waiting: true,
+                                      onPressed: null,
+                                    )
+                                  else if (!cooling)
+                                    _CtaBar(
+                                      label: waiting
+                                          ? 'Waiting for ${controller.partnerDisplayName}…'
+                                          : 'Leave a note for ${controller.partnerDisplayName}',
+                                      waiting: waiting,
+                                      onPressed: waiting ? null : _openRitual,
+                                    ),
+                                ],
+                              ),
                             ),
-                          if (goalsUnlocked)
-                            LoveGoalsPanel(controller: controller)
-                          else if (!cooling)
-                            _CtaBar(
-                              label: waiting
-                                  ? 'Waiting for ${controller.partnerDisplayName}…'
-                                  : 'Leave a note for ${controller.partnerDisplayName}',
-                              waiting: waiting,
-                              onPressed: waiting ? null : _openRitual,
-                            ),
+                          ),
                         ],
                       );
                     },
@@ -248,117 +268,141 @@ class _CompanionHero extends StatelessWidget {
         (evolution == CompanionEvolution.ascendant ? 1.2 : 1.08);
     final symbolH = heroSide * 0.18;
 
-    return Column(
-      children: [
-        const Spacer(flex: 2),
-        SizedBox(
-          width: stageWide,
-          height: paintH,
-          child: RepaintBoundary(
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.hardEdge,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxH = constraints.maxHeight;
+        // Scale the stage down when the Expanded slot is short (cooldown + chores).
+        final scale = maxH < 360 ? (maxH / 360).clamp(0.72, 1.0) : 1.0;
+        final side = heroSide * scale;
+        final wide = math.min(stageWide * scale, constraints.maxWidth);
+        final painted = paintH * scale;
+        final symbols = (symbolH * scale).clamp(22.0, symbolH);
+
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: constraints.maxWidth,
+            height: maxH.isFinite ? maxH : null,
+            child: Column(
               children: [
-                Container(
-                  width: heroSide * 1.05,
-                  height: heroSide * 0.95,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        SoulColors.celestialGold.withValues(alpha: 0.14),
-                        SoulColors.mistyLavender.withValues(alpha: 0.04),
-                        Colors.transparent,
+                const Spacer(flex: 1),
+                SizedBox(
+                  width: wide,
+                  height: painted,
+                  child: RepaintBoundary(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.hardEdge,
+                      children: [
+                        Container(
+                          width: side * 1.05,
+                          height: side * 0.95,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                SoulColors.celestialGold.withValues(alpha: 0.14),
+                                SoulColors.mistyLavender.withValues(alpha: 0.04),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.42, 1.0],
+                            ),
+                          ),
+                        ),
+                        Semantics(
+                          label:
+                              'Cloud companion, ${evolution.label}, ${state.label}',
+                          child: SoulCompanionView(
+                            state: state,
+                            cosmetic: cosmetic,
+                            evolution: evolution,
+                            size: Size(wide, painted),
+                          ),
+                        ),
                       ],
-                      stops: const [0.0, 0.42, 1.0],
                     ),
                   ),
                 ),
-                Semantics(
-                  label:
-                      'Cloud companion, ${evolution.label}, ${state.label}',
-                  child: SoulCompanionView(
-                    state: state,
-                    cosmetic: cosmetic,
-                    evolution: evolution,
-                    size: Size(stageWide, paintH),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    PartnerOutline(
+                      isYou: true,
+                      present: youPresent,
+                      height: symbols,
+                      label: youLabel,
+                    ),
+                    SizedBox(width: side * 0.14),
+                    PartnerOutline(
+                      isYou: false,
+                      present: themPresent,
+                      height: symbols,
+                      label: themLabel,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                AnimatedSwitcher(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 350),
+                  child: Text(
+                    key: ValueKey(evolution.name),
+                    evolution.displayTitle,
+                    style: SoulTypography.evolutionTitle.copyWith(
+                      fontSize: 18 * scale,
+                      letterSpacing: 2.8,
+                      color: SoulColors.warmIvory.withValues(alpha: 0.9),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  bondLine,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: SoulColors.celestialGold.withValues(alpha: 0.85),
+                    fontSize: 12 * scale,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                if (milestoneLine != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    milestoneLine!,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: SoulColors.mistyLavender.withValues(alpha: 0.65),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+                if (memoryLine != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    memoryLine!,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: SoulColors.celestialGold.withValues(alpha: 0.55),
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+                const Spacer(flex: 1),
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            PartnerOutline(
-              isYou: true,
-              present: youPresent,
-              height: symbolH,
-              label: youLabel,
-            ),
-            SizedBox(width: heroSide * 0.14),
-            PartnerOutline(
-              isYou: false,
-              present: themPresent,
-              height: symbolH,
-              label: themLabel,
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        AnimatedSwitcher(
-          duration: reduceMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 350),
-          child: Text(
-            key: ValueKey(evolution.name),
-            evolution.displayTitle,
-            style: SoulTypography.evolutionTitle.copyWith(
-              fontSize: 20,
-              letterSpacing: 2.8,
-              color: SoulColors.warmIvory.withValues(alpha: 0.9),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          bondLine,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: SoulColors.celestialGold.withValues(alpha: 0.85),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 0.2,
-          ),
-        ),
-        if (milestoneLine != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            milestoneLine!,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: SoulColors.mistyLavender.withValues(alpha: 0.65),
-              fontSize: 11,
-            ),
-          ),
-        ],
-        if (memoryLine != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            memoryLine!,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: SoulColors.celestialGold.withValues(alpha: 0.55),
-              fontSize: 11,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-        const Spacer(flex: 3),
-      ],
+        );
+      },
     );
   }
 }

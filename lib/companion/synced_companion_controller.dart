@@ -113,17 +113,31 @@ class SyncedCompanionController extends ChangeNotifier {
   bool get iAnsweredToday => ritual.iAnswered;
   bool get partnerAnsweredToday => ritual.partnerAnswered;
   bool get bothAnsweredToday => ritual.bothComplete;
-  bool get needsCheckIn => !iAnsweredToday && !isCoolingDown;
-  bool get waitingOnPartner => iAnsweredToday && !partnerAnsweredToday;
 
-  /// Goals from current cycle, or last connected day while cooling across midnight.
+  /// Expired cooldown still on the couple row — next cycle should open.
+  bool get _cooldownExpired {
+    final until = _couple.cooldownUntil;
+    if (until == null) return false;
+    return !until.isAfter(DateTime.now().toUtc());
+  }
+
+  /// True when we should advance into a fresh note cycle.
+  bool get awaitingNextConnection =>
+      !isCoolingDown && (bothAnsweredToday || _cooldownExpired);
+
+  bool get needsCheckIn =>
+      !iAnsweredToday && !isCoolingDown && !awaitingNextConnection;
+  bool get waitingOnPartner =>
+      iAnsweredToday && !partnerAnsweredToday && !isCoolingDown;
+
+  /// Tasks only while the 4h rest timer is live (not after it ends).
   bool get loveGoalsUnlocked =>
-      bothAnsweredToday || (isCoolingDown && _goalsDay != null);
+      isCoolingDown && (bothAnsweredToday || _goalsDay != null);
 
   CoupleDay? get _goalsDay {
+    if (!isCoolingDown) return null;
     if (_day?.bothAnswered == true) return _day;
-    if (isCoolingDown) return _goalsSourceDay;
-    return _day?.bothAnswered == true ? _day : null;
+    return _goalsSourceDay;
   }
 
   List<LoveGoal> get todaysLoveGoals {
@@ -333,29 +347,45 @@ class SyncedCompanionController extends ChangeNotifier {
   Future<void> _maybeBeginNextConnection() async {
     if (_advancingCycle || _bootstrapping) return;
     if (isCoolingDown) return;
-
-    final until = _couple.cooldownUntil;
-    // Idle: no leftover timer and today isn’t a completed cycle awaiting reset.
-    if (until == null && !(_day?.bothAnswered ?? false)) return;
+    if (!awaitingNextConnection) return;
 
     _advancingCycle = true;
     try {
+      // Refresh so we don't race on a stale cooldown_until.
+      await _refreshCouple();
+      if (isCoolingDown) return;
+
       final next = await coupleService.beginNextConnection(_couple);
       _couple = next.couple;
+      _goalsSourceDay = null;
       if (next.day != null) {
         _applyDay(next.day!);
+        await _ensureDaySubscription(next.day!.dateKey);
       } else {
-        await ensureToday();
+        final day = await coupleService.ensureTodayDay(_couple);
+        _applyDay(day);
+        await _ensureDaySubscription(day.dateKey);
       }
       await _refreshGoalsSource();
       _syncCooldownTicker();
+      _notify();
     } catch (_) {
-      // Partner won the race or day missing — refresh.
+      // Partner won the race or transient error — refresh and retry once.
       try {
         await _refreshCouple();
         final day = await coupleService.ensureTodayDay(_couple);
         _applyDay(day);
+        if (!isCoolingDown && awaitingNextConnection) {
+          final retry = await coupleService.beginNextConnection(_couple);
+          _couple = retry.couple;
+          _goalsSourceDay = null;
+          if (retry.day != null) {
+            _applyDay(retry.day!);
+          }
+        }
       } catch (_) {}
+      _syncCooldownTicker();
+      _notify();
     } finally {
       _advancingCycle = false;
     }
@@ -364,15 +394,28 @@ class SyncedCompanionController extends ChangeNotifier {
   void _syncCooldownTicker() {
     _cooldownTicker?.cancel();
     _cooldownTicker = null;
-    if (!isCoolingDown) return;
-    _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!isCoolingDown) {
-        _cooldownTicker?.cancel();
-        _cooldownTicker = null;
+    if (isCoolingDown) {
+      _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!isCoolingDown) {
+          _cooldownTicker?.cancel();
+          _cooldownTicker = null;
+          unawaited(_maybeBeginNextConnection());
+        }
+        _notify();
+      });
+      return;
+    }
+    // Timer already ended but cycle not advanced yet — keep trying.
+    if (awaitingNextConnection) {
+      _cooldownTicker = Timer.periodic(const Duration(seconds: 2), (_) {
+        if (!awaitingNextConnection) {
+          _cooldownTicker?.cancel();
+          _cooldownTicker = null;
+          return;
+        }
         unawaited(_maybeBeginNextConnection());
-      }
-      _notify();
-    });
+      });
+    }
   }
 
   Future<void> _ensureDaySubscription(String dateKey) async {
