@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/soul_app.dart';
-import 'config/file_local_storage.dart';
+import 'config/auth_storage.dart';
 import 'config/supabase_config.dart';
 
 Future<void> main() async {
@@ -11,14 +11,14 @@ Future<void> main() async {
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
 
   final host = Uri.parse(SupabaseConfig.url).host.split('.').first;
+  final storage = createAuthStorage('sb-$host-auth-token');
+
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.anonKey,
     authOptions: FlutterAuthClientOptions(
-      localStorage: FileLocalStorage(
-        persistSessionKey: 'sb-$host-auth-token',
-      ),
-      pkceAsyncStorage: FileGotrueAsyncStorage(),
+      localStorage: storage.localStorage,
+      pkceAsyncStorage: storage.pkceAsyncStorage,
     ),
   );
 

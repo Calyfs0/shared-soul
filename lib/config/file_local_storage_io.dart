@@ -56,7 +56,6 @@ class FileLocalStorage extends LocalStorage {
 /// PKCE code-verifier storage without SharedPreferences.
 class FileGotrueAsyncStorage extends GotrueAsyncStorage {
   FileGotrueAsyncStorage() {
-    unawaited(_ready.future);
     unawaited(_load());
   }
 
