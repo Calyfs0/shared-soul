@@ -78,7 +78,7 @@ class _PairScreenState extends State<PairScreen> {
     final s = e.toString();
     if (s.contains('Already in a couple')) return 'You’re already paired.';
     if (s.contains('both partners are active')) {
-      return 'Both of you still look signed in. Ask your partner to open the app, or try again in a minute.';
+      return 'Your partner is still connected on another device. Wait half a minute, then try the code again.';
     }
     if (s.contains('Invalid or full')) {
       return 'That code isn’t valid.';

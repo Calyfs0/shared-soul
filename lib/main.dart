@@ -6,7 +6,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/soul_app.dart';
 import 'app/splash_screen.dart';
 import 'config/auth_storage.dart';
-import 'config/memory_gotrue_storage.dart';
 import 'config/supabase_config.dart';
 import 'theme/soul_colors.dart';
 
@@ -41,22 +40,13 @@ class _BootAppState extends State<_BootApp> {
       final host = Uri.parse(SupabaseConfig.url).host.split('.').first;
       final persistKey = 'sb-$host-auth-token';
 
-      final FlutterAuthClientOptions authOptions;
-      if (kIsWeb) {
-        authOptions = FlutterAuthClientOptions(
-          localStorage: const EmptyLocalStorage(),
-          pkceAsyncStorage: MemoryGotrueAsyncStorage(),
-          detectSessionInUri: false,
-          persistSession: false,
-        );
-      } else {
-        final storage = createAuthStorage(persistKey);
-        authOptions = FlutterAuthClientOptions(
-          localStorage: storage.localStorage,
-          pkceAsyncStorage: storage.pkceAsyncStorage,
-          detectSessionInUri: false,
-        );
-      }
+      // Web uses SharedPreferences (browser localStorage); mobile uses files.
+      final storage = createAuthStorage(persistKey);
+      final authOptions = FlutterAuthClientOptions(
+        localStorage: storage.localStorage,
+        pkceAsyncStorage: storage.pkceAsyncStorage,
+        detectSessionInUri: false,
+      );
 
       await Supabase.initialize(
         url: SupabaseConfig.url,

@@ -121,23 +121,22 @@ class SyncedCompanionController extends ChangeNotifier {
     return !until.isAfter(DateTime.now().toUtc());
   }
 
-  /// True when we should advance into a fresh note cycle.
-  bool get awaitingNextConnection =>
-      !isCoolingDown && (bothAnsweredToday || _cooldownExpired);
+  /// True when the rest timer finished and a fresh note cycle should open.
+  bool get awaitingNextConnection => !isCoolingDown && _cooldownExpired;
 
   bool get needsCheckIn =>
       !iAnsweredToday && !isCoolingDown && !awaitingNextConnection;
   bool get waitingOnPartner =>
       iAnsweredToday && !partnerAnsweredToday && !isCoolingDown;
 
-  /// Tasks only while the 4h rest timer is live (not after it ends).
+  /// Tasks unlock after both notes; timer starts only when both finish all three.
   bool get loveGoalsUnlocked =>
-      isCoolingDown && (bothAnsweredToday || _goalsDay != null);
+      bothAnsweredToday || (isCoolingDown && _goalsDay != null);
 
   CoupleDay? get _goalsDay {
-    if (!isCoolingDown) return null;
     if (_day?.bothAnswered == true) return _day;
-    return _goalsSourceDay;
+    if (isCoolingDown) return _goalsSourceDay;
+    return null;
   }
 
   List<LoveGoal> get todaysLoveGoals {
@@ -283,8 +282,12 @@ class SyncedCompanionController extends ChangeNotifier {
       _applyDay(updated);
     } else {
       _goalsSourceDay = updated;
-      _notify();
     }
+    // Timer may have just started when both finished all three.
+    await _refreshCouple();
+    await _refreshGoalsSource();
+    _syncCooldownTicker();
+    _notify();
     return true;
   }
 

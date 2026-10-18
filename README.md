@@ -19,6 +19,8 @@ Or run these in order in the SQL Editor:
 - [`supabase/migrations/004_audit_hardening.sql`](supabase/migrations/004_audit_hardening.sql)
 - [`supabase/migrations/005_leave_slot_swap.sql`](supabase/migrations/005_leave_slot_swap.sql)
 - [`supabase/migrations/006_reclaim_by_invite.sql`](supabase/migrations/006_reclaim_by_invite.sql)
+- [`supabase/migrations/007_cooldown_after_all_goals.sql`](supabase/migrations/007_cooldown_after_all_goals.sql)
+- [`supabase/migrations/008_reclaim_refresh_friendly.sql`](supabase/migrations/008_reclaim_refresh_friendly.sql)
 
 3. Config is already in [`lib/config/supabase_config.dart`](lib/config/supabase_config.dart) (public anon key).
 
@@ -32,7 +34,7 @@ flutter run
 1. Phone A: open app → enter a name → **Create a couple code** → share/copy the 6-letter code (waiting lobby until they join).
 2. Phone B: enter a name → type the code → **Join**.
 3. Both leave a note → tasks unlock when both have answered.
-4. After both notes, a **4-hour cooldown** starts (countdown on home). Tasks stay available during the rest.
+4. After both notes, tasks unlock. When **both** finish all three, a **4-hour rest timer** starts.
 5. When the timer ends, a new check-in opens automatically.
 6. Completing a task on one phone syncs to the other (Realtime).
 
@@ -41,11 +43,11 @@ flutter run
 ## V1 checklist
 
 - [ ] Anonymous Auth enabled
-- [ ] Migrations 001–006 applied
+- [ ] Migrations 001–008 applied
 - [ ] Create + wait lobby + join with invite code
 - [ ] Notes sync both ways
 - [ ] Tasks appear after both notes
-- [ ] 4h cooldown countdown on both phones
+- [ ] 4h rest timer starts only after both finish all 3 tasks
 - [ ] Next connection after cooldown
 - [ ] Task check-offs sync
 - [ ] Bond days increment once per calendar day when both answered

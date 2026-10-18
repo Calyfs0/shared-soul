@@ -48,7 +48,7 @@ class LoveGoalsPanel extends StatelessWidget {
                 roundDone
                     ? (cooling
                         ? 'Rest together — a new check-in opens when the timer ends.'
-                        : 'You’re ready for another check-in.')
+                        : 'When you both finish all three, the rest timer starts.')
                     : '$done of $total for you · $partnerDone of $total for $partner',
                 textAlign: TextAlign.center,
                 style: TextStyle(

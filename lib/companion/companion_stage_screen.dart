@@ -143,9 +143,9 @@ class _CompanionStageScreenState extends State<CompanionStageScreen>
                     builder: (context, constraints) {
                       final w = constraints.maxWidth;
                       final h = constraints.maxHeight;
-                      // Keep hero compact when cooldown + chores share the screen.
-                      final bottomReserve = cooling
-                          ? (goalsUnlocked ? 300.0 : 180.0)
+                      // Keep hero compact when chores (and maybe timer) share the screen.
+                      final bottomReserve = goalsUnlocked
+                          ? (cooling ? 300.0 : 260.0)
                           : (awaitingNext ? 120.0 : 140.0);
                       final heroBudget =
                           (h - bottomReserve).clamp(120.0, h * 0.42);
@@ -496,7 +496,7 @@ class _CooldownBanner extends StatelessWidget {
         child: Column(
           children: [
             Text(
-              'Come back after 4 hours',
+              'Rest for 4 hours',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: SoulColors.mistyLavender.withValues(alpha: 0.75),
